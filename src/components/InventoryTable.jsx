@@ -6,10 +6,7 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [deleteCountdown, setDeleteCountdown] = useState(0)
-  const [selectedTires, setSelectedTires] = useState(new Set())
-  const [bulkDeleting, setBulkDeleting] = useState(false)
 
-  // Define performDelete with useCallback to prevent infinite loops
   const performDelete = useCallback(async () => {
     const { error } = await supabase.from('tires').delete().eq('id', deleteTarget.id)
     if (error) {
@@ -20,28 +17,9 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
       setDeleteTarget(null)
       setDeleting(false)
       setDeleteCountdown(0)
-      setSelectedTires(new Set())
       onRefresh()
     }
   }, [deleteTarget, onRefresh])
-
-  // Bulk delete function
-  const performBulkDelete = useCallback(async () => {
-    const idsToDelete = Array.from(selectedTires)
-    const { error } = await supabase.from('tires').delete().in('id', idsToDelete)
-    if (error) {
-      setDeleteError(error.message)
-      setBulkDeleting(false)
-      setDeleteCountdown(0)
-    } else {
-      setBulkDeleting(false)
-      setDeleteCountdown(0)
-      setSelectedTires(new Set())
-      setDeleteTarget(null)
-      onRefresh()
-      showAlert(`${idsToDelete.length} tire(s) deleted successfully!`)
-    }
-  }, [selectedTires, onRefresh])
 
   // Countdown effect for single delete
   useEffect(() => {
@@ -56,28 +34,6 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
     return () => clearInterval(timer)
   }, [deleting, deleteCountdown, performDelete])
 
-  // Countdown effect for bulk delete
-  useEffect(() => {
-    let timer
-    if (bulkDeleting && deleteCountdown > 0) {
-      timer = setInterval(() => {
-        setDeleteCountdown(prev => prev - 1)
-      }, 1000)
-    } else if (deleteCountdown === 0 && bulkDeleting) {
-      performBulkDelete()
-    }
-    return () => clearInterval(timer)
-  }, [bulkDeleting, deleteCountdown, performBulkDelete])
-
-  // Helper function to show alert (you can import this or implement locally)
-  const showAlert = (msg) => {
-    // If you have a global alert system, use it here
-    console.log(msg)
-    // Or dispatch an event
-    const event = new CustomEvent('showAlert', { detail: { msg, type: 'success' } })
-    window.dispatchEvent(event)
-  }
-
   function handleDeleteClick(tire) {
     setDeleteTarget(tire)
   }
@@ -88,43 +44,9 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
     setDeleteError('')
   }
 
-  function handleBulkDeleteClick() {
-    if (selectedTires.size === 0) return
-    setBulkDeleting(true)
-    setDeleteCountdown(5)
-    setDeleteError('')
-  }
-
-  // Handle single checkbox selection
-  function handleSelectTire(tireId) {
-    const newSelected = new Set(selectedTires)
-    if (newSelected.has(tireId)) {
-      newSelected.delete(tireId)
-    } else {
-      newSelected.add(tireId)
-    }
-    setSelectedTires(newSelected)
-  }
-
-  // Handle select all checkbox
-  function handleSelectAll() {
-    if (selectedTires.size === tires.length) {
-      // Deselect all
-      setSelectedTires(new Set())
-    } else {
-      // Select all
-      const allIds = tires.map(tire => tire.id)
-      setSelectedTires(new Set(allIds))
-    }
-  }
-
-  // Direct edit - NO loading, just open the form
   function handleEditClick(tire) {
     onEdit(tire)
   }
-
-  const isAllSelected = tires.length > 0 && selectedTires.size === tires.length
-  const isSomeSelected = selectedTires.size > 0 && selectedTires.size < tires.length
 
   if (loading) {
     return (
@@ -149,50 +71,10 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
 
   return (
     <>
-      {/* Bulk Action Bar */}
-      {selectedTires.size > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-md bg-black px-4 py-2 text-white">
-          <div className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            <span className="text-sm font-medium">
-              {selectedTires.size} item{selectedTires.size !== 1 ? 's' : ''} selected
-            </span>
-          </div>
-          <button
-            onClick={handleBulkDeleteClick}
-            className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14H6L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-              <path d="M9 6V4h6v2"/>
-            </svg>
-            Delete Selected
-          </button>
-        </div>
-      )}
-
       <div className="overflow-x-auto rounded-md border border-gray-200 bg-white">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {/* Select All Checkbox Column */}
-              <th className="w-10 px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  ref={input => {
-                    if (input) {
-                      input.indeterminate = isSomeSelected
-                    }
-                  }}
-                  onChange={handleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
-                />
-              </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">ID Number</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Brand</th>
@@ -205,15 +87,6 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
           <tbody className="divide-y divide-gray-200 bg-white">
             {tires.map((tire, idx) => (
               <tr key={tire.id} className={`hover:bg-gray-50 transition-colors ${tire.quantity < 5 ? 'bg-red-50/30' : ''}`}>
-                {/* Checkbox cell */}
-                <td className="whitespace-nowrap px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedTires.has(tire.id)}
-                    onChange={() => handleSelectTire(tire.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
-                  />
-                </td>
                 <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{idx + 1}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-sm">
@@ -276,13 +149,13 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
                     </div>
                   </td>
                 )}
-               </tr>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Single Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       {deleteTarget && !deleting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !deleting && setDeleteTarget(null)}>
           <div className="w-full max-w-md rounded-md bg-white shadow-xl" onClick={e => e.stopPropagation()}>
@@ -324,57 +197,8 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
         </div>
       )}
 
-      {/* Bulk Delete Confirmation Modal */}
-      {bulkDeleting && deleteCountdown > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl text-center">
-            <div className="relative flex h-28 w-28 mx-auto items-center justify-center">
-              <svg className="h-28 w-28 -rotate-90 transform">
-                <circle
-                  className="text-gray-200"
-                  strokeWidth="5"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r="50"
-                  cx="56"
-                  cy="56"
-                />
-                <circle
-                  className="text-red-600 transition-all duration-1000 ease-linear"
-                  strokeWidth="5"
-                  strokeDasharray={314.16}
-                  strokeDashoffset={314.16 * (1 - (5 - deleteCountdown) / 5)}
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r="50"
-                  cx="56"
-                  cy="56"
-                />
-              </svg>
-              <span className="absolute text-4xl font-bold text-black">{deleteCountdown}</span>
-            </div>
-            
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold text-gray-900">Deleting {selectedTires.size} Tire(s)...</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Please wait {deleteCountdown} second{deleteCountdown !== 1 ? 's' : ''}
-              </p>
-              <div className="mt-3">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                  <div 
-                    className="h-full rounded-full bg-red-600 transition-all duration-1000 ease-linear"
-                    style={{ width: `${((5 - deleteCountdown) / 5) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Single Delete Loading Modal */}
-      {deleting && !bulkDeleting && (
+      {/* Delete Loading Modal */}
+      {deleting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl text-center">
             <div className="relative flex h-28 w-28 mx-auto items-center justify-center">
