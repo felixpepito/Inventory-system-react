@@ -39,15 +39,6 @@ export default function UserDashboard() {
       t.description?.toLowerCase().includes(search.toLowerCase())
     )
   }
-
-  // Filter brands by search (para sa Brands page)
-  const getFilteredBrands = () => {
-    if (!search) return allBrands
-    return allBrands.filter(brand => 
-      brand.toLowerCase().includes(search.toLowerCase())
-    )
-  }
-
   const filtered = selectedBrand 
     ? tires.filter(t => t.brand === selectedBrand)
     : tires
