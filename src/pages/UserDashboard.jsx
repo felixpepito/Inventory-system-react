@@ -62,8 +62,8 @@ export default function UserDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-                {activePage === 'inventory' && 'Tire Inventory Management'}
-                {activePage === 'brands' && 'Brand Management'}
+                {activePage === 'inventory' && 'Tire Inventory'}
+                {activePage === 'brands' && 'Tire Inventory by Brand'}
               </h2>
               <p className="mt-1 text-sm text-gray-500">Triangle Outsourcing Corporation — Viewer Portal</p>
             </div>
@@ -78,7 +78,7 @@ export default function UserDashboard() {
         </div>
 
         <div className="px-6 py-6 lg:px-8">
-          {/* INVENTORY VIEW - Full Inventory Table */}
+          {/* ========== INVENTORY PAGE (now NO brand cards - only table) ========== */}
           {activePage === 'inventory' && (
             <div className="space-y-6">
               {/* Search Toolbar */}
@@ -104,39 +104,30 @@ export default function UserDashboard() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {selectedBrand && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
-                      {selectedBrand}
-                      <button onClick={() => setSelectedBrand(null)} className="text-gray-500 hover:text-gray-700">×</button>
-                    </span>
-                  )}
-                  <span className="text-sm text-gray-500">{getFilteredTiresBySearch(filtered).length} result{getFilteredTiresBySearch(filtered).length !== 1 ? 's' : ''}</span>
+                  <span className="text-sm text-gray-500">{getFilteredTiresBySearch(tires).length} result{getFilteredTiresBySearch(tires).length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
 
-              {/* Inventory Table */}
-              <InventoryTable
-                tires={getFilteredTiresBySearch(filtered)}
-                isAdmin={false}
-                onEdit={null}
-                onRefresh={fetchTires}
-                loading={loading}
-              />
-
-              {/* No Results Message */}
-              {getFilteredTiresBySearch(filtered).length === 0 && (
-                <div className="flex flex-col items-center justify-center rounded-md border border-gray-200 bg-white py-12">
-                  <svg className="h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <p className="mt-4 text-sm font-medium text-gray-900">No tires found</p>
-                  <p className="mt-1 text-xs text-gray-500">Try adjusting your search</p>
+              {/* Inventory Table - No brand cards, just the table */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900">All Inventory</h3>
+                  <span className="text-sm text-gray-500">
+                    ({getFilteredTiresBySearch(tires).length})
+                  </span>
                 </div>
-              )}
+                <InventoryTable
+                  tires={getFilteredTiresBySearch(tires)}
+                  isAdmin={false}
+                  onEdit={null}
+                  onRefresh={fetchTires}
+                  loading={loading}
+                />
+              </div>
             </div>
           )}
 
-          {/* BRANDS VIEW - Grouped by Brand in Vertical Format */}
+          {/* ========== BRANDS PAGE (now shows Brand Cards + Vertical Tables) ========== */}
           {activePage === 'brands' && (
             <div className="space-y-6">
               {/* Search Toolbar */}
