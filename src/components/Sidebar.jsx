@@ -1,23 +1,9 @@
-import React, { useState } from 'react'
-import { supabase } from '../supabaseClient'
+// Sidebar.jsx
+import React from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
-export default function Sidebar({ activePage, setActivePage }) {
+export default function Sidebar({ activePage, setActivePage, collapsed, setCollapsed, loggingOut = false }) {
   const { profile } = useAuth()
-  const [collapsed, setCollapsed] = useState(false)
-  const [loggingOut, setLoggingOut] = useState(false)
-
-  async function handleLogout() {
-    setLoggingOut(true)
-    try {
-      // Show loading for 5 seconds before actually logging out
-      await new Promise(resolve => setTimeout(resolve, 5000))
-      await supabase.auth.signOut()
-    } catch (error) {
-      console.error('Logout error:', error)
-      setLoggingOut(false)
-    }
-  }
 
   const navItems = profile?.role === 'admin'
     ? [
@@ -32,19 +18,21 @@ export default function Sidebar({ activePage, setActivePage }) {
 
   return (
     <>
-      {/* Full Screen Loading Modal - Spinner Only */}
+      {/* Full Screen Loading Modal - triggered by parent loggingOut */}
       {loggingOut && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 rounded-2xl bg-gradient-to-br from-gray-900 to-black p-8 shadow-2xl border border-gray-700 min-w-[320px]">
-            {/* Spinner - toyok2 lang */}
             <div className="relative">
               <div className="h-16 w-16 rounded-full border-4 border-gray-700 border-t-white animate-spin"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <TireLogoIconSmall />
+                {/* Logo image in loading modal - now circular */}
+                <img 
+                  src="/img/logo1.png" 
+                  alt="Triangle Tire System Logo"
+                  className="h-8 w-8 rounded-full object-cover"
+                />
               </div>
             </div>
-            
-            {/* Loading Text */}
             <div className="text-center">
               <h3 className="text-xl font-semibold text-white mb-2">Signing Out</h3>
               <p className="text-gray-400 text-sm">Please wait while we securely log you out...</p>
@@ -61,7 +49,14 @@ export default function Sidebar({ activePage, setActivePage }) {
           collapsed ? 'flex-col gap-3' : ''
         }`}>
           <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : ''}`}>
-            <TireLogoIcon />
+            {/* Custom logo image - now circular */}
+            <img 
+              src="/img/logo1.png" 
+              alt="Triangle Tire System Logo"
+              className={`rounded-full object-cover transition-all duration-200 ${
+                collapsed ? 'h-8 w-8' : 'h-9 w-9'
+              }`}
+            />
             {!collapsed && (
               <div className="leading-tight">
                 <div className="text-xs font-semibold tracking-wider text-gray-400">TRIANGLE</div>
@@ -69,32 +64,7 @@ export default function Sidebar({ activePage, setActivePage }) {
               </div>
             )}
           </div>
-          <button 
-            onClick={() => setCollapsed(v => !v)}
-            className="rounded p-1 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-            disabled={loggingOut}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              {collapsed
-                ? <polyline points="9 18 15 12 9 6"/>
-                : <polyline points="15 18 9 12 15 6"/>
-              }
-            </svg>
-          </button>
         </div>
-
-        {/* User Badge */}
-        {!collapsed && profile && (
-          <div className="mx-3 mt-6 flex items-center gap-3 rounded-md bg-gray-900 p-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 text-sm font-medium uppercase">
-              {profile?.full_name?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <div className="truncate text-sm font-medium">{profile?.full_name || 'User'}</div>
-              <div className="text-xs uppercase text-gray-400">{profile?.role}</div>
-            </div>
-          </div>
-        )}
 
         {/* Navigation */}
         <nav className="mt-6 px-3">
@@ -108,14 +78,11 @@ export default function Sidebar({ activePage, setActivePage }) {
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id)}
-                disabled={loggingOut}
                 className={`flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   activePage === item.id
                     ? 'bg-white text-black'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                } ${collapsed ? 'justify-center' : 'gap-3'} ${
-                  loggingOut ? 'cursor-not-allowed opacity-50' : ''
-                }`}
+                } ${collapsed ? 'justify-center' : 'gap-3'}`}
                 title={collapsed ? item.label : ''}
               >
                 <span className="h-5 w-5 shrink-0"><item.icon /></span>
@@ -128,37 +95,9 @@ export default function Sidebar({ activePage, setActivePage }) {
           </div>
         </nav>
 
-        {/* Bottom Logout */}
-        <div className="absolute bottom-6 left-0 right-0 px-3">
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className={`flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-300 transition-all duration-200 ${
-              collapsed ? 'justify-center' : 'gap-3'
-            } ${
-              loggingOut 
-                ? 'cursor-not-allowed bg-gray-800 opacity-70' 
-                : 'hover:bg-gray-800 hover:text-white'
-            }`}
-            title={collapsed ? 'Logout' : ''}
-          >
-            <span className="h-5 w-5 shrink-0">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-            </span>
-            {!collapsed && (
-              <span className="flex-1 text-left">
-                Sign Out
-              </span>
-            )}
-          </button>
-        </div>
+        {/* No logout button here anymore */}
       </aside>
 
-      {/* CSS Animations */}
       <style jsx>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -171,39 +110,7 @@ export default function Sidebar({ activePage, setActivePage }) {
   )
 }
 
-// Small logo for loading modal
-function TireLogoIconSmall() {
-  return (
-    <div className="h-8 w-8">
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="18" stroke="white" strokeWidth="2"/>
-        <circle cx="20" cy="20" r="12" stroke="white" strokeWidth="1.5"/>
-        <circle cx="20" cy="20" r="5" fill="white"/>
-        {[0,60,120,180,240,300].map((angle, i) => (
-          <rect key={i} x="18.5" y="2" width="3" height="6" rx="1.5" fill="white"
-            transform={`rotate(${angle} 20 20}`}/>
-        ))}
-      </svg>
-    </div>
-  )
-}
-
-function TireLogoIcon() {
-  return (
-    <div className="relative h-8 w-8">
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
-        <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="2" className="text-white"/>
-        <circle cx="20" cy="20" r="12" stroke="currentColor" strokeWidth="1.5" className="text-white"/>
-        <circle cx="20" cy="20" r="5" fill="currentColor" className="text-white"/>
-        {[0,60,120,180,240,300].map((angle, i) => (
-          <rect key={i} x="18.5" y="2" width="3" height="6" rx="1.5" fill="currentColor" className="text-white"
-            transform={`rotate(${angle} 20 20}`}/>
-        ))}
-      </svg>
-    </div>
-  )
-}
-
+// Icons (unchanged)
 function DashboardIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

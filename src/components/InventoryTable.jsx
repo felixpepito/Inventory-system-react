@@ -21,7 +21,7 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
     }
   }, [deleteTarget, onRefresh])
 
-  // Countdown effect for single delete
+  // 3-second countdown effect for delete
   useEffect(() => {
     let timer
     if (deleting && deleteCountdown > 0) {
@@ -40,7 +40,7 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
 
   function confirmDelete() {
     setDeleting(true)
-    setDeleteCountdown(5)
+    setDeleteCountdown(3) // 3 seconds instead of 5
     setDeleteError('')
   }
 
@@ -197,50 +197,16 @@ export default function InventoryTable({ tires, isAdmin, onEdit, onRefresh, load
         </div>
       )}
 
-      {/* Delete Loading Modal */}
+      {/* Delete Loading Modal - Spinner only, no line/countdown */}
       {deleting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl text-center">
-            <div className="relative flex h-28 w-28 mx-auto items-center justify-center">
-              <svg className="h-28 w-28 -rotate-90 transform">
-                <circle
-                  className="text-gray-200"
-                  strokeWidth="5"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r="50"
-                  cx="56"
-                  cy="56"
-                />
-                <circle
-                  className="text-red-600 transition-all duration-1000 ease-linear"
-                  strokeWidth="5"
-                  strokeDasharray={314.16}
-                  strokeDashoffset={314.16 * (1 - (5 - deleteCountdown) / 5)}
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r="50"
-                  cx="56"
-                  cy="56"
-                />
-              </svg>
-              <span className="absolute text-4xl font-bold text-black">{deleteCountdown}</span>
+            <div className="flex justify-center">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-black"></div>
             </div>
-            
             <div className="mt-4">
               <h3 className="text-lg font-semibold text-gray-900">Deleting Tire Record...</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Please wait {deleteCountdown} second{deleteCountdown !== 1 ? 's' : ''}
-              </p>
-              <div className="mt-3">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                  <div 
-                    className="h-full rounded-full bg-red-600 transition-all duration-1000 ease-linear"
-                    style={{ width: `${((5 - deleteCountdown) / 5) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
+              <p className="text-sm text-gray-500 mt-1">Please wait</p>
             </div>
           </div>
         </div>

@@ -35,7 +35,7 @@ export default function Login() {
           <div className="relative space-y-8">
             <div className="w-24 h-24 animate-[float_4s_ease-in-out_infinite]">
               <img 
-                src="/img/logo.png"
+                src="/img/logo1.png"
                 alt="Tire Icon"
                 className="w-full h-full object-contain"
               />

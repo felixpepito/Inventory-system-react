@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
+import { useAuth } from '../contexts/AuthContext'
 import Sidebar from '../components/Sidebar'
 import DashboardCards from '../components/DashboardCards'
 import BrandCards from '../components/BrandCards'
@@ -7,6 +8,7 @@ import InventoryTable from '../components/InventoryTable'
 import TireForm from '../components/TireForm'
 
 export default function AdminDashboard() {
+  const { profile } = useAuth()
   const [activePage, setActivePage] = useState('dashboard')
   const [tires, setTires] = useState([])
   const [loading, setLoading] = useState(true)
@@ -15,8 +17,11 @@ export default function AdminDashboard() {
   const [showForm, setShowForm] = useState(false)
   const [editTire, setEditTire] = useState(null)
   const [alert, setAlert] = useState(null)
+  const [collapsed, setCollapsed] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
 
-  // Pagination for dashboard recent inventory
   const [recentPage, setRecentPage] = useState(1)
   const itemsPerPage = 5
 
@@ -35,6 +40,16 @@ export default function AdminDashboard() {
   useEffect(() => {
     setRecentPage(1)
   }, [tires])
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   function showAlert(msg, type = 'success') {
     setAlert({ msg, type })
@@ -58,7 +73,18 @@ export default function AdminDashboard() {
     showAlert(editTire ? 'Tire updated successfully!' : 'Tire added successfully!')
   }
 
-  // Pagination logic for dashboard
+  async function handleLogout() {
+    setDropdownOpen(false)
+    setLoggingOut(true)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('Logout error:', error)
+      setLoggingOut(false)
+    }
+  }
+
   const totalRecentItems = tires.length
   const totalRecentPages = Math.ceil(totalRecentItems / itemsPerPage)
   const startIndex = (recentPage - 1) * itemsPerPage
@@ -73,7 +99,6 @@ export default function AdminDashboard() {
     if (recentPage > 1) setRecentPage(recentPage - 1)
   }
 
-  // Filtering logic (used on both Inventory and Brands pages)
   const filtered = tires.filter(t => {
     const matchBrand = selectedBrand ? t.brand === selectedBrand : true
     const q = search.toLowerCase().trim()
@@ -82,18 +107,25 @@ export default function AdminDashboard() {
   })
 
   const lowStockTires = tires.filter(t => t.quantity < 5)
-
-  // Distinct brands for dropdown filter on Inventory page
   const distinctBrands = [...new Set(tires.map(t => t.brand))].sort()
+
+  const userName = profile?.full_name || 'User'
+  const userRole = profile?.role?.toUpperCase() || 'ADMIN'
+  const userInitial = userName?.[0]?.toUpperCase() || 'A'
 
   return (
     <div className="flex min-h-screen bg-white">
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      <Sidebar 
+        activePage={activePage} 
+        setActivePage={setActivePage} 
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        loggingOut={loggingOut}
+      />
 
       <main className="flex-1 ml-0 lg:ml-64 transition-all duration-300">
-        {/* Alert Toast */}
         {alert && (
-          <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-md shadow-lg text-sm font-medium transition-all duration-200 animate-in fade-in slide-in-from-top-2 ${
+          <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-md shadow-lg text-sm font-medium transition-all duration-200 ${
             alert.type === 'success' ? 'bg-black text-white' : 'bg-red-600 text-white'
           }`}>
             {alert.type === 'success' ? (
@@ -107,7 +139,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Page Header */}
         <div className="border-b border-gray-200 bg-white px-6 py-5 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -118,22 +149,69 @@ export default function AdminDashboard() {
               </h2>
               <p className="mt-1 text-sm text-gray-500">Triangle Outsourcing Corporation — Admin Portal</p>
             </div>
-            {(activePage === 'inventory' || activePage === 'brands') && (
-              <button 
-                onClick={handleAdd}
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition-colors"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Add Tire
-              </button>
-            )}
+            <div className="flex items-center gap-4">
+              {(activePage === 'inventory' || activePage === 'brands') && (
+                <button 
+                  onClick={handleAdd}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Add Tire
+                </button>
+              )}
+
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  disabled={loggingOut}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
+                >
+                  {userInitial}
+                </button>
+                
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-10 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700">
+                          {userInitial}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {userName}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {profile?.email || ''}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {userRole}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                      </svg>
+                      <span>{loggingOut ? 'Signing Out...' : 'Sign Out'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="px-6 py-6 lg:px-8">
-          {/* DASHBOARD VIEW (unchanged) */}
           {activePage === 'dashboard' && (
             <div className="space-y-8">
               <DashboardCards tires={tires} />
@@ -219,7 +297,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* INVENTORY PAGE - No brand cards, only table + brand dropdown */}
           {activePage === 'inventory' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -237,7 +314,6 @@ export default function AdminDashboard() {
                   {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">×</button>}
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* Brand filter dropdown */}
                   <select
                     value={selectedBrand || ''}
                     onChange={e => setSelectedBrand(e.target.value || null)}
@@ -262,7 +338,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* BRANDS PAGE - Brand cards + inventory table */}
           {activePage === 'brands' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -311,6 +386,41 @@ export default function AdminDashboard() {
           onSaved={handleFormSaved}
         />
       )}
+
+      {/* Logout Loading Modal - kapareho ng UserDashboard */}
+      {loggingOut && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6 rounded-2xl bg-gradient-to-br from-gray-900 to-black p-8 shadow-2xl border border-gray-700 min-w-[320px]">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-full border-4 border-gray-700 border-t-white animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <TireLogoIconSmall />
+              </div>
+            </div>
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-white mb-2">Signing Out</h3>
+              <p className="text-gray-400 text-sm">Please wait while we securely log you out...</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Maliit na logo ng gulong para sa loading modal
+function TireLogoIconSmall() {
+  return (
+    <div className="h-8 w-8">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="18" stroke="white" strokeWidth="2"/>
+        <circle cx="20" cy="20" r="12" stroke="white" strokeWidth="1.5"/>
+        <circle cx="20" cy="20" r="5" fill="white"/>
+        {[0,60,120,180,240,300].map((angle, i) => (
+          <rect key={i} x="18.5" y="2" width="3" height="6" rx="1.5" fill="white"
+            transform={`rotate(${angle} 20 20)`}/>
+        ))}
+      </svg>
     </div>
   )
 }

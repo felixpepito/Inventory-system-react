@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react'
+// UserDashboard.jsx
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import UserSidebar from '../components/UserSidebar'
 import InventoryTable from '../components/InventoryTable'
@@ -9,6 +10,31 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedBrand, setSelectedBrand] = useState(null)
+  const [collapsed, setCollapsed] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [profile, setProfile] = useState(null)  // <-- new state for user profile
+  const dropdownRef = useRef(null)
+
+  // Fetch current user's profile from public.profiles
+  const fetchProfile = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', user.id)
+      .single()
+
+    if (!error && data) {
+      setProfile(data)
+    } else {
+      // Fallback if no profile exists
+      setProfile({ full_name: user.email?.split('@')[0] || 'User', role: 'user' })
+    }
+  }, [])
 
   const fetchTires = useCallback(async () => {
     setLoading(true)
@@ -20,17 +46,52 @@ export default function UserDashboard() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchTires() }, [fetchTires])
+  useEffect(() => {
+    fetchProfile()
+    fetchTires()
+  }, [fetchProfile, fetchTires])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Close mobile sidebar when window resizes to md breakpoint or above
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMobileSidebarOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    setDropdownOpen(false)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('Logout error:', error)
+      setLoggingOut(false)
+    }
+  }
 
   // Get all unique brands and sort in specific order
   const allBrands = ['Bridgestone', 'Goodyear', 'Maxxis', 'Michelin', 'Yokohama']
   
-  // Filter tires by selected brand or show all
   const getTiresByBrand = (brand) => {
     return tires.filter(t => t.brand === brand)
   }
 
-  // Global search filter for all tires
   const getFilteredTiresBySearch = (tiresList) => {
     if (!search) return tiresList
     return tiresList.filter(t => 
@@ -42,37 +103,150 @@ export default function UserDashboard() {
   const filtered = selectedBrand 
     ? tires.filter(t => t.brand === selectedBrand)
     : tires
-  
+
+  const toggleMobileSidebar = () => {
+    setMobileSidebarOpen(!mobileSidebarOpen)
+  }
+
+  const closeMobileSidebar = () => {
+    setMobileSidebarOpen(false)
+  }
+
+  const mainMarginClass = collapsed ? 'md:ml-20' : 'md:ml-64'
+
+  // Prepare user info for header dropdown
+  const userName = profile?.full_name || 'User'
+  const userEmail = profile?.email || ''
+  const userRole = profile?.role?.toUpperCase() || 'VIEWER'
+  const userInitial = userName?.[0]?.toUpperCase() || 'U'
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <UserSidebar activePage={activePage} setActivePage={setActivePage} />
-
-      <main className="flex-1 lg:ml-64 transition-all duration-300">
-        {/* Page Header */}
-        <div className="border-b border-gray-200 bg-white px-6 py-5 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-                {activePage === 'inventory' && 'Tire Inventory'}
-                {activePage === 'brands' && 'Tire Inventory by Brand'}
-              </h2>
-              <p className="mt-1 text-sm text-gray-500">Triangle Outsourcing Corporation — Viewer Portal</p>
+      {/* Full Screen Loading Modal */}
+      {loggingOut && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6 rounded-2xl bg-gradient-to-br from-gray-900 to-black p-8 shadow-2xl border border-gray-700 min-w-[320px]">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-full border-4 border-gray-700 border-t-white animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <TireLogoIconSmall />
+              </div>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              View Only Mode
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-white mb-2">Signing Out</h3>
+              <p className="text-gray-400 text-sm">Please wait while we securely log you out...</p>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="px-6 py-6 lg:px-8">
-          {/* ========== INVENTORY PAGE (now NO brand cards - only table) ========== */}
+      <UserSidebar 
+        activePage={activePage}
+        setActivePage={setActivePage}
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        disabled={loggingOut}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={closeMobileSidebar}
+        profile={profile}   // <-- pass profile to sidebar
+      />
+
+      <main className={`flex-1 transition-all duration-300 ${mainMarginClass}`}>
+        {/* Page Header */}
+        <div className="border-b border-gray-200 bg-white sticky top-0 z-20">
+          <div className="px-4 py-3 lg:px-8">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  onClick={toggleMobileSidebar}
+                  className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 md:hidden"
+                  disabled={loggingOut}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+                <div className="truncate">
+                  <h2 className="text-lg font-bold tracking-tight text-gray-900 sm:text-xl md:text-2xl truncate">
+                    {activePage === 'inventory' && 'Tire Inventory'}
+                    {activePage === 'brands' && 'Tire Brand'}
+                  </h2>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+                {/* View Only Badge */}
+                <div>
+                </div>
+                
+                {/* User Avatar Dropdown - Facebook style with user info */}
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    disabled={loggingOut}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
+                  >
+                    {userInitial}
+                  </button>
+                  
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-10 overflow-hidden">
+                      {/* User info section */}
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700">
+                            {userInitial}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {userName}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {userEmail}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {userRole}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Sign out button */}
+                      <button
+                        onClick={() => {
+                          setDropdownOpen(false)
+                          handleLogout()
+                        }}
+                        disabled={loggingOut}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                          <polyline points="16 17 21 12 16 7"/>
+                          <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                        <span>{loggingOut ? 'Signing Out...' : 'Sign Out'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <p className="mt-1 text-xs text-gray-500 sm:hidden">
+              Triangle Outsourcing Corp — Viewer Portal
+            </p>
+            <p className="hidden sm:block text-sm text-gray-500 mt-1">
+              Triangle Outsourcing Corporation — Viewer Portal
+            </p>
+          </div>
+        </div>
+
+        {/* Rest of the page content remains exactly the same as before */}
+        <div className="px-4 py-4 lg:px-8">
+          {/* INVENTORY PAGE */}
           {activePage === 'inventory' && (
             <div className="space-y-6">
-              {/* Search Toolbar */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="relative max-w-md w-full">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -98,14 +272,10 @@ export default function UserDashboard() {
                   <span className="text-sm text-gray-500">{getFilteredTiresBySearch(tires).length} result{getFilteredTiresBySearch(tires).length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
-
-              {/* Inventory Table - No brand cards, just the table */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-semibold text-gray-900">All Inventory</h3>
-                  <span className="text-sm text-gray-500">
-                    ({getFilteredTiresBySearch(tires).length})
-                  </span>
+                  <span className="text-sm text-gray-500">({getFilteredTiresBySearch(tires).length})</span>
                 </div>
                 <InventoryTable
                   tires={getFilteredTiresBySearch(tires)}
@@ -118,10 +288,9 @@ export default function UserDashboard() {
             </div>
           )}
 
-          {/* ========== BRANDS PAGE (now shows Brand Cards + Vertical Tables) ========== */}
+          {/* BRANDS PAGE */}
           {activePage === 'brands' && (
             <div className="space-y-6">
-              {/* Search Toolbar */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="relative max-w-md w-full">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -143,7 +312,7 @@ export default function UserDashboard() {
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   {selectedBrand && (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
                       {selectedBrand}
@@ -154,14 +323,12 @@ export default function UserDashboard() {
                 </div>
               </div>
 
-              {/* Brand Cards for Quick Filter */}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
                 {allBrands.map((brand) => {
                   const brandTires = getTiresByBrand(brand)
                   const filteredBrandTiresForCard = getFilteredTiresBySearch(brandTires)
                   const totalQty = filteredBrandTiresForCard.reduce((sum, t) => sum + (t.quantity || 0), 0)
                   const isSelected = selectedBrand === brand
-                  // Only show brand card if may laman after search
                   if (search && filteredBrandTiresForCard.length === 0) return null
                   return (
                     <div
@@ -202,7 +369,6 @@ export default function UserDashboard() {
                 })}
               </div>
 
-              {/* Brand Sections with Tables - VERTICAL FORMAT */}
               <div className="flex flex-col space-y-6">
                 {allBrands.map((brand) => {
                   const brandTires = getTiresByBrand(brand)
@@ -265,7 +431,6 @@ export default function UserDashboard() {
                 })}
               </div>
 
-              {/* No Results Message */}
               {allBrands.every(brand => {
                 const brandTires = getTiresByBrand(brand)
                 const filteredBrandTires = getFilteredTiresBySearch(brandTires)
@@ -283,6 +448,32 @@ export default function UserDashboard() {
           )}
         </div>
       </main>
+
+      <style jsx>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
+    </div>
+  )
+}
+
+// Small logo for loading modal
+function TireLogoIconSmall() {
+  return (
+    <div className="h-8 w-8">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="18" stroke="white" strokeWidth="2"/>
+        <circle cx="20" cy="20" r="12" stroke="white" strokeWidth="1.5"/>
+        <circle cx="20" cy="20" r="5" fill="white"/>
+        {[0,60,120,180,240,300].map((angle, i) => (
+          <rect key={i} x="18.5" y="2" width="3" height="6" rx="1.5" fill="white"
+            transform={`rotate(${angle} 20 20}`}/>
+        ))}
+      </svg>
     </div>
   )
 }

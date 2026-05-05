@@ -34,7 +34,7 @@ export default function TireForm({ editTire, onClose, onSaved }) {
     }
   }, [])
 
-  // Countdown timer effect - AFTER saving
+  // 3-second countdown effect after saving
   useEffect(() => {
     let timer
     if (loading && countdown > 0) {
@@ -42,7 +42,6 @@ export default function TireForm({ editTire, onClose, onSaved }) {
         setCountdown(prev => prev - 1)
       }, 1000)
     } else if (countdown === 0 && loading) {
-      // Countdown finished, close modal and refresh
       onSaved()
     }
     return () => clearInterval(timer)
@@ -56,7 +55,7 @@ export default function TireForm({ editTire, onClose, onSaved }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    setCountdown(5) // Start 5-second countdown
+    setCountdown(3) // 3 seconds instead of 5
     setError('')
 
     const payload = {
@@ -67,12 +66,11 @@ export default function TireForm({ editTire, onClose, onSaved }) {
       updated_at: new Date().toISOString(),
     }
 
-    // Save to Supabase
     let error
     if (isEdit) {
-      ;({ error } = await supabase.from('tires').update(payload).eq('id', editTire.id))
+      ({ error } = await supabase.from('tires').update(payload).eq('id', editTire.id))
     } else {
-      ;({ error } = await supabase.from('tires').insert([payload]))
+      ({ error } = await supabase.from('tires').insert([payload]))
     }
 
     if (error) {
@@ -80,7 +78,7 @@ export default function TireForm({ editTire, onClose, onSaved }) {
       setLoading(false)
       setCountdown(0)
     }
-    // If no error, countdown will continue and onSaved will be called when countdown reaches 0
+    // If no error, countdown continues and onSaved will be called when countdown reaches 0
   }
 
   return (
@@ -92,7 +90,6 @@ export default function TireForm({ editTire, onClose, onSaved }) {
         className="w-full max-w-lg rounded-md bg-white shadow-2xl animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
-        {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-gray-100 p-4">
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-gray-100 p-1.5 text-gray-700">
@@ -122,7 +119,6 @@ export default function TireForm({ editTire, onClose, onSaved }) {
           </button>
         </div>
 
-        {/* Modal Content */}
         <div className="p-4">
           {error && (
             <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600 flex items-center gap-2">
@@ -130,7 +126,6 @@ export default function TireForm({ editTire, onClose, onSaved }) {
             </div>
           )}
 
-          {/* Show form fields when NOT loading */}
           {!loading ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -217,59 +212,18 @@ export default function TireForm({ editTire, onClose, onSaved }) {
               </div>
             </form>
           ) : (
-            /* 5 SECONDS LOADING - Lumalabas lang AFTER mag-save */
+            /* LOADING MODAL - Spinner only, no countdown number or progress bar */
             <div className="py-8">
               <div className="flex flex-col items-center justify-center gap-4">
-                {/* Circular Countdown Timer */}
-                <div className="relative flex h-32 w-32 items-center justify-center">
-                  <svg className="h-32 w-32 -rotate-90 transform">
-                    <circle
-                      className="text-gray-200"
-                      strokeWidth="6"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="58"
-                      cx="64"
-                      cy="64"
-                    />
-                    <circle
-                      className="text-black transition-all duration-1000 ease-linear"
-                      strokeWidth="6"
-                      strokeDasharray={364.42}
-                      strokeDashoffset={364.42 * (1 - (5 - countdown) / 5)}
-                      strokeLinecap="round"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="58"
-                      cx="64"
-                      cy="64"
-                    />
-                  </svg>
-                  <span className="absolute text-4xl font-bold text-black">{countdown}</span>
+                <div className="flex justify-center">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-black"></div>
                 </div>
-                
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-gray-900">
                     {isEdit ? 'Updating Tire Record...' : 'Adding New Tire...'}
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Please wait {countdown} second{countdown !== 1 ? 's' : ''}
-                  </p>
+                  <p className="text-sm text-gray-500 mt-1">Please wait</p>
                 </div>
-
-                {/* Progress Bar */}
-                <div className="w-full max-w-xs">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                    <div 
-                      className="h-full rounded-full bg-black transition-all duration-1000 ease-linear"
-                      style={{ width: `${((5 - countdown) / 5) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                <p className="text-xs text-gray-400 animate-pulse">
-                  Saving to database...
-                </p>
               </div>
             </div>
           )}
