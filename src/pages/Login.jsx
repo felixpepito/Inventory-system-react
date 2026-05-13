@@ -25,45 +25,89 @@ export default function Login() {
     <div className="min-h-screen flex items-stretch relative overflow-hidden">
       {/* Main container */}
       <div className="flex w-full min-h-screen">
-        {/* Left Panel - White side with Branding */}
-        <div className="hidden lg:flex flex-1 bg-white flex-col justify-between p-12 lg:p-16 relative overflow-hidden">
-          {/* Decorative circles - subtle gray */}
-          <div className="absolute -right-20 top-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-gradient-radial from-gray-100 to-transparent pointer-events-none" />
-          <div className="absolute -right-28 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border-2 border-dashed border-gray-200 animate-[spin_30s_linear_infinite] pointer-events-none" />
+        {/* Left Panel - GRAY side with Branding (formerly white) */}
+        <div className="hidden lg:flex flex-1 bg-gray-100 flex-col justify-between p-12 lg:p-16 relative overflow-hidden">
+          {/* Decorative circles group - all moving together dynamically */}
+          
+          {/* Circle 1: Large pulsing circle with drifting movement */}
+          <div 
+            className="absolute -right-20 top-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-gradient-radial from-gray-300 via-gray-200 to-transparent opacity-70"
+            style={{
+              animation: 'pulse 4s ease-in-out infinite, driftHorizontal 12s ease-in-out infinite'
+            }}
+          />
+          
+          {/* Circle 2: Spinning dashed circle with floating motion */}
+          <div 
+            className="absolute -right-28 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border-4 border-dashed border-gray-500/80 shadow-lg"
+            style={{
+              animation: 'spin 8s linear infinite, scaleSoft 3s ease-in-out infinite, floatDiagonal 10s ease-in-out infinite'
+            }}
+          />
+          
+          {/* Circle 3: New medium circle that orbits around the center */}
+          <div 
+            className="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full bg-gradient-to-br from-gray-400/20 to-gray-600/10 backdrop-blur-sm border border-gray-400/30"
+            style={{
+              animation: 'orbitRotate 15s linear infinite, wobble 6s ease-in-out infinite',
+              transformOrigin: 'center',
+              marginLeft: '-150px',
+              marginTop: '-150px'
+            }}
+          />
+          
+          {/* Circle 4: Small energetic circle that bounces and moves */}
+          <div 
+            className="absolute w-[120px] h-[120px] rounded-full bg-gray-500/20 border-2 border-dotted border-gray-600/60"
+            style={{
+              animation: 'bounceMove 7s ease-in-out infinite, rotateInverse 12s linear infinite',
+              top: '30%',
+              left: '70%'
+            }}
+          />
+          
+          {/* Circle 5: Tiny accent circle that zips around */}
+          <div 
+            className="absolute w-[60px] h-[60px] rounded-full bg-gray-400/40 blur-sm"
+            style={{
+              animation: 'fastOrbit 8s linear infinite, pulseGlow 2s ease-in-out infinite',
+              top: '50%',
+              left: '50%',
+              marginLeft: '-30px',
+              marginTop: '-30px'
+            }}
+          />
 
           {/* Logo Area */}
-          <div className="relative space-y-8">
+          <div className="relative space-y-8 z-10">
             <div className="w-24 h-24 animate-[float_4s_ease-in-out_infinite]">
               <img 
-                src="/img/logo1.png"
+                src="/img/logo23.png"
                 alt="Tire Icon"
                 className="w-full h-full object-contain"
               />
             </div>
             <div className="space-y-2">
-              <span className="font-['Barlow_Condensed'] text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase">
+              <span className="font-['Barlow_Condensed'] text-xs font-semibold tracking-[0.2em] text-gray-600 uppercase">
                 TRIANGLE OUTSOURCING CORPORATION
               </span>
               <h1 className="font-['Barlow_Condensed'] text-5xl lg:text-6xl font-black leading-tight text-black uppercase">
                 TIRE INVENTORY<br />
-                <span className="text-gray-700">SYSTEM</span>
               </h1>
             </div>
           </div>
-
-          {/* Bottom Text */}
         </div>
 
-        {/* Right Panel - Black side with Form */}
+        {/* Right Panel - Black side with Form (same) */}
         <div className="flex-1 lg:w-[460px] lg:flex-none bg-black flex items-center justify-center p-8 lg:p-16">
           <div className="w-full max-w-md">
             {/* Header */}
             <div className="mb-9">
               <h2 className="font-['Barlow_Condensed'] text-3xl lg:text-4xl font-extrabold text-white mb-1.5">
-                Welcome Back
+                Welcome To Tire Inventory
               </h2>
               <p className="text-gray-500 text-sm">
-                Sign in to access your dashboard
+                Sign in 
               </p>
             </div>
 
@@ -168,18 +212,84 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Custom Animations */}
+      {/* Enhanced Animations with multiple moving effects */}
       <style jsx>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
+        
+        @keyframes scaleSoft {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 0.4; transform: scale(1) translate(-50%, -50%); }
+          50% { opacity: 0.8; transform: scale(1.08) translate(-46%, -46%); }
+        }
+        
         @keyframes float {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
         }
+        
         @keyframes slideDown {
           from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* New movement animations for circles */
+        @keyframes driftHorizontal {
+          0% { transform: translate(-50%, -50%) translateX(-40px); }
+          50% { transform: translate(-50%, -50%) translateX(40px); }
+          100% { transform: translate(-50%, -50%) translateX(-40px); }
+        }
+        
+        @keyframes floatDiagonal {
+          0% { transform: translate(-50%, -50%) translate(-20px, -20px); }
+          25% { transform: translate(-50%, -50%) translate(20px, -20px); }
+          50% { transform: translate(-50%, -50%) translate(20px, 20px); }
+          75% { transform: translate(-50%, -50%) translate(-20px, 20px); }
+          100% { transform: translate(-50%, -50%) translate(-20px, -20px); }
+        }
+        
+        @keyframes orbitRotate {
+          0% { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+          100% { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
+        }
+        
+        @keyframes wobble {
+          0%, 100% { border-radius: 50%; }
+          33% { border-radius: 40% 60% 60% 40% / 50% 40% 60% 50%; }
+          66% { border-radius: 60% 40% 40% 60% / 40% 50% 50% 60%; }
+        }
+        
+        @keyframes bounceMove {
+          0% { transform: translate(0, 0) scale(1); }
+          20% { transform: translate(-30px, -40px) scale(1.1); }
+          40% { transform: translate(20px, -60px) scale(0.9); }
+          60% { transform: translate(40px, -20px) scale(1.2); }
+          80% { transform: translate(-20px, 20px) scale(0.95); }
+          100% { transform: translate(0, 0) scale(1); }
+        }
+        
+        @keyframes rotateInverse {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(-360deg); }
+        }
+        
+        @keyframes fastOrbit {
+          0% { transform: rotate(0deg) translateX(220px) rotate(0deg); }
+          100% { transform: rotate(360deg) translateX(220px) rotate(-360deg); }
+        }
+        
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.3; filter: blur(4px); }
+          50% { opacity: 0.8; filter: blur(8px); }
+        }
+        
+        .absolute {
+          transform-origin: center;
         }
       `}</style>
     </div>
