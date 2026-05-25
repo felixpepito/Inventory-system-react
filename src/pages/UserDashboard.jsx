@@ -29,7 +29,12 @@ export default function UserDashboard() {
       .eq('id', user.id)
       .single()
 
-    setProfile(data || { full_name: user.email?.split('@')[0] || 'User', role: 'user' })
+    setProfile({ 
+      ...data, 
+      email: user.email,
+      full_name: data?.full_name || user.email?.split('@')[0] || 'User',
+      role: data?.role || 'user'
+    })
   }, [])
 
   // Fetch tires sorted alphabetically
@@ -73,7 +78,7 @@ export default function UserDashboard() {
     setLoggingOut(true)
     setDropdownOpen(false)
     try {
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      await new Promise(resolve => setTimeout(resolve, 1000))
       await supabase.auth.signOut()
     } catch (error) {
       console.error('Logout error:', error)
