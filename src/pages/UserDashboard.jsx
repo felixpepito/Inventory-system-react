@@ -1,4 +1,4 @@
-// UserDashboard.jsx - Updated without "View all" button
+// UserDashboard.jsx - Fixed version
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
@@ -18,25 +18,21 @@ export default function UserDashboard() {
   const [profile, setProfile] = useState(null)
   const dropdownRef = useRef(null)
 
-  // Fetch current user's profile from public.profiles
+  // Fetch user profile
   const fetchProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('full_name, role')
       .eq('id', user.id)
       .single()
 
-    if (!error && data) {
-      setProfile(data)
-    } else {
-      // Fallback if no profile exists
-      setProfile({ full_name: user.email?.split('@')[0] || 'User', role: 'user' })
-    }
+    setProfile(data || { full_name: user.email?.split('@')[0] || 'User', role: 'user' })
   }, [])
 
+  // Fetch tires sorted alphabetically
   const fetchTires = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -64,12 +60,10 @@ export default function UserDashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Close mobile sidebar when window resizes to md breakpoint or above
+  // Close mobile sidebar on resize
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setMobileSidebarOpen(false)
-      }
+      if (window.innerWidth >= 768) setMobileSidebarOpen(false)
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
@@ -87,75 +81,42 @@ export default function UserDashboard() {
     }
   }
 
-  // Get all unique brands from tires data and sort alphabetically
+  // Get unique brands sorted alphabetically
   const allBrands = [...new Set(tires.map(tire => tire.brand).filter(Boolean))].sort((a, b) => 
     a.localeCompare(b, undefined, { sensitivity: 'base' })
   )
   
-  const getTiresByBrand = (brand) => {
-    return tires.filter(t => t.brand === brand)
-  }
-
-  const getFilteredTiresBySearch = (tiresList) => {
-    if (!search) return tiresList
-    return tiresList.filter(t => 
-      t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
-      t.brand?.toLowerCase().includes(search.toLowerCase()) ||
-      t.description?.toLowerCase().includes(search.toLowerCase())
-    )
-  }
-  
-  // Filter by selected brand FIRST, then by search
-  const getFilteredByBrandAndSearch = () => {
-    let filteredTires = tires
-    
-    // Apply brand filter if selected
-    if (selectedBrand) {
-      filteredTires = filteredTires.filter(t => t.brand === selectedBrand)
-    }
-    
-    // Apply search filter
+  // Filter tires by selected brand and search
+  const filteredTires = (() => {
+    let result = tires
+    if (selectedBrand) result = result.filter(t => t.brand === selectedBrand)
     if (search) {
-      filteredTires = filteredTires.filter(t => 
-        t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
-        t.brand?.toLowerCase().includes(search.toLowerCase()) ||
-        t.description?.toLowerCase().includes(search.toLowerCase())
+      const term = search.toLowerCase()
+      result = result.filter(t => 
+        t.id_number?.toLowerCase().includes(term) ||
+        t.brand?.toLowerCase().includes(term) ||
+        t.description?.toLowerCase().includes(term)
       )
     }
-    
-    return filteredTires
-  }
-  
-  const filteredTires = getFilteredByBrandAndSearch()
+    return result
+  })()
 
-  const toggleMobileSidebar = () => {
-    setMobileSidebarOpen(!mobileSidebarOpen)
+  const handleBrandClick = (brand) => {
+    setSelectedBrand(selectedBrand === brand ? null : brand)
   }
 
-  const closeMobileSidebar = () => {
-    setMobileSidebarOpen(false)
-  }
+  const toggleMobileSidebar = () => setMobileSidebarOpen(!mobileSidebarOpen)
+  const closeMobileSidebar = () => setMobileSidebarOpen(false)
 
   const mainMarginClass = collapsed ? 'md:ml-20' : 'md:ml-64'
-
-  // Prepare user info for header dropdown
   const userName = profile?.full_name || 'User'
   const userEmail = profile?.email || ''
   const userRole = profile?.role?.toUpperCase() || 'VIEWER'
   const userInitial = userName?.[0]?.toUpperCase() || 'U'
 
-  // Function to handle brand click - toggles selection
-  const handleBrandClick = (brand) => {
-    if (selectedBrand === brand) {
-      setSelectedBrand(null) // Deselect if already selected
-    } else {
-      setSelectedBrand(brand) // Select new brand
-    }
-  }
-
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Full Screen Loading Modal */}
+      {/* Logout Modal */}
       {loggingOut && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 rounded-2xl bg-gradient-to-br from-gray-900 to-black p-8 shadow-2xl border border-gray-700 min-w-[320px]">
@@ -185,7 +146,7 @@ export default function UserDashboard() {
       />
 
       <main className={`flex-1 transition-all duration-300 ${mainMarginClass}`}>
-        {/* Page Header */}
+        {/* Header */}
         <div className="border-b border-gray-200 bg-white sticky top-0 z-20">
           <div className="px-4 py-3 lg:px-8">
             <div className="flex items-center justify-between gap-2">
@@ -199,190 +160,137 @@ export default function UserDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </button>
-                <div className="truncate">
-                  <h2 className="text-lg font-bold tracking-tight text-gray-900 sm:text-xl md:text-2xl truncate">
-                    {activePage === 'inventory' && 'Tire Inventory'}
-                    {activePage === 'brands' && 'Tire Brands'}
-                  </h2>
-                </div>
+                <h2 className="text-lg font-bold tracking-tight text-gray-900 sm:text-xl md:text-2xl truncate">
+                  {activePage === 'inventory' ? 'Tire Inventory' : 'Tire Brands'}
+                </h2>
               </div>
               
-              <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-                {/* User Avatar Dropdown */}
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setDropdownOpen(!dropdownOpen)}
-                    disabled={loggingOut}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
-                  >
-                    {userInitial}
-                  </button>
-                  
-                  {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-10 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700">
-                            {userInitial}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {userName}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">
-                              {userEmail}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              {userRole}
-                            </p>
-                          </div>
+              {/* User Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  disabled={loggingOut}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
+                >
+                  {userInitial}
+                </button>
+                
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-10 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700">
+                          {userInitial}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{userName}</p>
+                          <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{userRole}</p>
                         </div>
                       </div>
-                      
-                      <button
-                        onClick={() => {
-                          setDropdownOpen(false)
-                          handleLogout()
-                        }}
-                        disabled={loggingOut}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                          <polyline points="16 17 21 12 16 7"/>
-                          <line x1="21" y1="12" x2="9" y2="12"/>
-                        </svg>
-                        <span>{loggingOut ? 'Signing Out...' : 'Sign Out'}</span>
-                      </button>
                     </div>
-                  )}
-                </div>
+                    <button
+                      onClick={() => { setDropdownOpen(false); handleLogout() }}
+                      disabled={loggingOut}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                      </svg>
+                      <span>{loggingOut ? 'Signing Out...' : 'Sign Out'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            
-            <p className="mt-1 text-xs text-gray-500 sm:hidden">
-              Triangle Outsourcing Corp — Viewer Portal
-            </p>
-            <p className="hidden sm:block text-sm text-gray-500 mt-1">
-              Triangle Outsourcing Corporation — Viewer Portal
-            </p>
+            <p className="mt-1 text-sm text-gray-500">Triangle Outsourcing Corporation — Viewer Portal</p>
           </div>
         </div>
 
+        {/* Main Content */}
         <div className="px-4 py-4 lg:px-8">
+          {/* Search Bar - Common for both pages */}
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by ID, brand, or description..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-8 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* INVENTORY PAGE */}
           {activePage === 'inventory' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative max-w-md w-full">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search by ID, brand, or description..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-8 text-sm placeholder:text-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                  {search && (
-                    <button 
-                      onClick={() => setSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{filteredTires.length} result{filteredTires.length !== 1 ? 's' : ''}</span>
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {selectedBrand ? `${selectedBrand} - Inventory` : 'All Inventory'}
+                </h3>
+                {selectedBrand && (
+                  <button onClick={() => setSelectedBrand(null)} className="text-xs text-gray-500 hover:text-black">
+                    Clear ✕
+                  </button>
+                )}
+                <span className="text-sm text-gray-500">({filteredTires.length})</span>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {selectedBrand ? `${selectedBrand} - Inventory` : 'All Inventory'}
-                  </h3>
-                  {selectedBrand && (
-                    <button
-                      onClick={() => setSelectedBrand(null)}
-                      className="text-xs text-gray-500 hover:text-black"
-                    >
-                      Clear filter ✕
-                    </button>
-                  )}
-                  <span className="text-sm text-gray-500">({filteredTires.length})</span>
-                </div>
-                <InventoryTable
-                  tires={filteredTires}
-                  isAdmin={false}
-                  onEdit={null}
-                  onRefresh={fetchTires}
-                  loading={loading}
-                />
-              </div>
+              <InventoryTable
+                tires={filteredTires}
+                isAdmin={false}
+                onEdit={null}
+                onRefresh={fetchTires}
+                loading={loading}
+              />
             </div>
           )}
 
           {/* BRANDS PAGE */}
           {activePage === 'brands' && (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative max-w-md w-full">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search by ID, brand, or description..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-8 text-sm placeholder:text-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                  {search && (
-                    <button 
-                      onClick={() => setSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  {selectedBrand && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black text-white px-3 py-1 text-xs font-medium">
-                      Filtered: {selectedBrand}
-                      <button onClick={() => setSelectedBrand(null)} className="text-white/80 hover:text-white">×</button>
-                    </span>
-                  )}
+              {/* Filter indicator */}
+              {selectedBrand && (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black text-white px-3 py-1 text-xs font-medium">
+                    Filtered: {selectedBrand}
+                    <button onClick={() => setSelectedBrand(null)} className="text-white/80 hover:text-white">×</button>
+                  </span>
                   <span className="text-sm text-gray-500">{filteredTires.length} result{filteredTires.length !== 1 ? 's' : ''}</span>
                 </div>
-              </div>
+              )}
 
-              {/* Brand Cards - Clickable */}
+              {/* Brand Cards */}
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
                 {allBrands.map((brand) => {
-                  const brandTires = getTiresByBrand(brand)
-                  const filteredBrandTiresForCard = search 
+                  const brandTires = tires.filter(t => t.brand === brand)
+                  const displayTires = search 
                     ? brandTires.filter(t => 
                         t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
                         t.description?.toLowerCase().includes(search.toLowerCase())
                       )
                     : brandTires
-                  const totalQty = filteredBrandTiresForCard.reduce((sum, t) => sum + (t.quantity || 0), 0)
+                  const totalQty = displayTires.reduce((sum, t) => sum + (t.quantity || 0), 0)
                   const isSelected = selectedBrand === brand
                   
-                  // Hide brand card if no results match search
-                  if (search && filteredBrandTiresForCard.length === 0) return null
+                  if (search && displayTires.length === 0) return null
                   
                   return (
                     <div
                       key={brand}
                       onClick={() => handleBrandClick(brand)}
                       className={`group relative cursor-pointer rounded-md border transition-all hover:shadow-md ${
-                        isSelected 
-                          ? 'border-black bg-gray-50 shadow-md ring-1 ring-black' 
-                          : 'border-gray-200 bg-white hover:border-gray-300'
+                        isSelected ? 'border-black bg-gray-50 shadow-md ring-1 ring-black' : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                     >
                       <div className={`h-1 w-full rounded-t-md transition-colors ${
@@ -390,9 +298,7 @@ export default function UserDashboard() {
                       }`}></div>
                       <div className="p-4">
                         <div className="flex items-center justify-between">
-                          <span className={`font-semibold ${isSelected ? 'text-black' : 'text-gray-900'}`}>
-                            {brand}
-                          </span>
+                          <span className={`font-semibold ${isSelected ? 'text-black' : 'text-gray-900'}`}>{brand}</span>
                           {isSelected && (
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-black">
                               <path d="M20 6L9 17l-5-5"/>
@@ -402,7 +308,7 @@ export default function UserDashboard() {
                         <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
                           <div>
                             <div className="text-xs text-gray-500">Items</div>
-                            <div className="text-lg font-semibold text-gray-900">{filteredBrandTiresForCard.length}</div>
+                            <div className="text-lg font-semibold text-gray-900">{displayTires.length}</div>
                           </div>
                           <div className="h-6 w-px bg-gray-200"></div>
                           <div>
@@ -416,8 +322,8 @@ export default function UserDashboard() {
                 })}
               </div>
 
-              {/* Selected Brand Section - Shows all tires from selected brand */}
-              {selectedBrand ? (
+              {/* Selected Brand Full Table */}
+              {selectedBrand && (
                 <div className="rounded-md border border-gray-200 bg-white overflow-hidden">
                   <div className="bg-black px-4 py-3">
                     <div className="flex items-center justify-between">
@@ -428,11 +334,8 @@ export default function UserDashboard() {
                           Total Quantity: {filteredTires.reduce((sum, t) => sum + (t.quantity || 0), 0)}
                         </p>
                       </div>
-                      <button
-                        onClick={() => setSelectedBrand(null)}
-                        className="text-white/80 hover:text-white text-sm flex items-center gap-1"
-                      >
-                        Clear filter ✕
+                      <button onClick={() => setSelectedBrand(null)} className="text-white/80 hover:text-white text-sm">
+                        Clear ✕
                       </button>
                     </div>
                   </div>
@@ -440,25 +343,25 @@ export default function UserDashboard() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">ID Number</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Description</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">#</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">ID Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Quantity</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
                         {filteredTires.map((tire, idx) => (
-                          <tr key={tire.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{idx + 1}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700 max-w-md truncate">{tire.description}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm">
+                          <tr key={tire.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-500">{idx + 1}</td>
+                            <td className="px-4 py-3 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{tire.description}</td>
+                            <td className="px-4 py-3 text-sm">
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                                 tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
                               }`}>{tire.quantity}</span>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm">
+                            <td className="px-4 py-3 text-sm">
                               <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
                                 tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
                               }`}>
@@ -472,57 +375,54 @@ export default function UserDashboard() {
                     </table>
                   </div>
                 </div>
-              ) : (
-                /* Show all brands with their tires when no brand is selected - WITHOUT VIEW ALL BUTTON */
+              )}
+
+              {/* All Brands Tables (when no brand selected) */}
+              {!selectedBrand && (
                 <div className="flex flex-col space-y-6">
                   {allBrands.map((brand) => {
-                    const brandTires = getTiresByBrand(brand)
-                    const filteredBrandTires = search 
+                    const brandTires = tires.filter(t => t.brand === brand)
+                    const displayTires = search 
                       ? brandTires.filter(t => 
                           t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
                           t.description?.toLowerCase().includes(search.toLowerCase())
                         )
                       : brandTires
                     
-                    if (filteredBrandTires.length === 0) return null
+                    if (displayTires.length === 0) return null
 
                     return (
                       <div key={brand} className="rounded-md border border-gray-200 bg-white overflow-hidden">
                         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="text-lg font-semibold text-gray-900">{brand}</h3>
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                {filteredBrandTires.length} item{filteredBrandTires.length !== 1 ? 's' : ''} • 
-                                Total Quantity: {filteredBrandTires.reduce((sum, t) => sum + (t.quantity || 0), 0)}
-                              </p>
-                            </div>
-                            {/* REMOVED: View all button */}
-                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900">{brand}</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {displayTires.length} item{displayTires.length !== 1 ? 's' : ''} • 
+                            Total Quantity: {displayTires.reduce((sum, t) => sum + (t.quantity || 0), 0)}
+                          </p>
                         </div>
                         <div className="overflow-x-auto">
                           <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-white">
                               <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">ID Number</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Description</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">#</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">ID Number</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Description</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Quantity</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
-                              {filteredBrandTires.slice(0, 5).map((tire, idx) => (
-                                <tr key={tire.id} className="hover:bg-gray-50 transition-colors">
-                                  <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{idx + 1}</td>
-                                  <td className="whitespace-nowrap px-4 py-2 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
-                                  <td className="px-4 py-2 text-sm text-gray-700 max-w-md truncate">{tire.description}</td>
-                                  <td className="whitespace-nowrap px-4 py-2 text-sm">
+                              {displayTires.slice(0, 5).map((tire, idx) => (
+                                <tr key={tire.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-2 text-sm text-gray-500">{idx + 1}</td>
+                                  <td className="px-4 py-2 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
+                                  <td className="px-4 py-2 text-sm text-gray-700">{tire.description}</td>
+                                  <td className="px-4 py-2 text-sm">
                                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                                       tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
                                     }`}>{tire.quantity}</span>
                                   </td>
-                                  <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                  <td className="px-4 py-2 text-sm">
                                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
                                       tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
                                     }`}>
@@ -534,11 +434,9 @@ export default function UserDashboard() {
                               ))}
                             </tbody>
                           </table>
-                          {filteredBrandTires.length > 5 && (
+                          {displayTires.length > 5 && (
                             <div className="px-4 py-2 text-center border-t border-gray-100 bg-gray-50">
-                              <p className="text-xs text-gray-500">
-                                + {filteredBrandTires.length - 5} more items
-                              </p>
+                              <p className="text-xs text-gray-500">+ {displayTires.length - 5} more items</p>
                             </div>
                           )}
                         </div>
@@ -548,16 +446,16 @@ export default function UserDashboard() {
                 </div>
               )}
 
-              {/* No results message */}
+              {/* No Results */}
               {allBrands.every(brand => {
-                const brandTires = getTiresByBrand(brand)
-                const filteredBrandTires = search 
+                const brandTires = tires.filter(t => t.brand === brand)
+                const filtered = search 
                   ? brandTires.filter(t => 
                       t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
                       t.description?.toLowerCase().includes(search.toLowerCase())
                     )
                   : brandTires
-                return filteredBrandTires.length === 0
+                return filtered.length === 0
               }) && (
                 <div className="flex flex-col items-center justify-center rounded-md border border-gray-200 bg-white py-12">
                   <svg className="h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
