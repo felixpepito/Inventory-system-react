@@ -1,4 +1,5 @@
-// UserDashboard.jsx
+// UserDashboard.jsx - Updated without "View all" button
+
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import UserSidebar from '../components/UserSidebar'
@@ -14,7 +15,7 @@ export default function UserDashboard() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [profile, setProfile] = useState(null)  // <-- new state for user profile
+  const [profile, setProfile] = useState(null)
   const dropdownRef = useRef(null)
 
   // Fetch current user's profile from public.profiles
@@ -41,7 +42,8 @@ export default function UserDashboard() {
     const { data, error } = await supabase
       .from('tires')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('brand', { ascending: true })
+      .order('id_number', { ascending: true })
     if (!error) setTires(data || [])
     setLoading(false)
   }, [])
@@ -85,8 +87,10 @@ export default function UserDashboard() {
     }
   }
 
-  // Get all unique brands and sort in specific order
-  const allBrands = ['Bridgestone', 'Goodyear', 'Maxxis', 'Michelin', 'Yokohama']
+  // Get all unique brands from tires data and sort alphabetically
+  const allBrands = [...new Set(tires.map(tire => tire.brand).filter(Boolean))].sort((a, b) => 
+    a.localeCompare(b, undefined, { sensitivity: 'base' })
+  )
   
   const getTiresByBrand = (brand) => {
     return tires.filter(t => t.brand === brand)
@@ -100,9 +104,29 @@ export default function UserDashboard() {
       t.description?.toLowerCase().includes(search.toLowerCase())
     )
   }
-  const filtered = selectedBrand 
-    ? tires.filter(t => t.brand === selectedBrand)
-    : tires
+  
+  // Filter by selected brand FIRST, then by search
+  const getFilteredByBrandAndSearch = () => {
+    let filteredTires = tires
+    
+    // Apply brand filter if selected
+    if (selectedBrand) {
+      filteredTires = filteredTires.filter(t => t.brand === selectedBrand)
+    }
+    
+    // Apply search filter
+    if (search) {
+      filteredTires = filteredTires.filter(t => 
+        t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
+        t.brand?.toLowerCase().includes(search.toLowerCase()) ||
+        t.description?.toLowerCase().includes(search.toLowerCase())
+      )
+    }
+    
+    return filteredTires
+  }
+  
+  const filteredTires = getFilteredByBrandAndSearch()
 
   const toggleMobileSidebar = () => {
     setMobileSidebarOpen(!mobileSidebarOpen)
@@ -119,6 +143,15 @@ export default function UserDashboard() {
   const userEmail = profile?.email || ''
   const userRole = profile?.role?.toUpperCase() || 'VIEWER'
   const userInitial = userName?.[0]?.toUpperCase() || 'U'
+
+  // Function to handle brand click - toggles selection
+  const handleBrandClick = (brand) => {
+    if (selectedBrand === brand) {
+      setSelectedBrand(null) // Deselect if already selected
+    } else {
+      setSelectedBrand(brand) // Select new brand
+    }
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -148,7 +181,7 @@ export default function UserDashboard() {
         disabled={loggingOut}
         mobileOpen={mobileSidebarOpen}
         onMobileClose={closeMobileSidebar}
-        profile={profile}   // <-- pass profile to sidebar
+        profile={profile}
       />
 
       <main className={`flex-1 transition-all duration-300 ${mainMarginClass}`}>
@@ -169,17 +202,13 @@ export default function UserDashboard() {
                 <div className="truncate">
                   <h2 className="text-lg font-bold tracking-tight text-gray-900 sm:text-xl md:text-2xl truncate">
                     {activePage === 'inventory' && 'Tire Inventory'}
-                    {activePage === 'brands' && 'Tire Brand'}
+                    {activePage === 'brands' && 'Tire Brands'}
                   </h2>
                 </div>
               </div>
               
               <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-                {/* View Only Badge */}
-                <div>
-                </div>
-                
-                {/* User Avatar Dropdown - Facebook style with user info */}
+                {/* User Avatar Dropdown */}
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -191,7 +220,6 @@ export default function UserDashboard() {
                   
                   {dropdownOpen && (
                     <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-10 overflow-hidden">
-                      {/* User info section */}
                       <div className="px-4 py-3 border-b border-gray-100">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700">
@@ -211,7 +239,6 @@ export default function UserDashboard() {
                         </div>
                       </div>
                       
-                      {/* Sign out button */}
                       <button
                         onClick={() => {
                           setDropdownOpen(false)
@@ -242,7 +269,6 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Rest of the page content remains exactly the same as before */}
         <div className="px-4 py-4 lg:px-8">
           {/* INVENTORY PAGE */}
           {activePage === 'inventory' && (
@@ -269,16 +295,26 @@ export default function UserDashboard() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{getFilteredTiresBySearch(tires).length} result{getFilteredTiresBySearch(tires).length !== 1 ? 's' : ''}</span>
+                  <span className="text-sm text-gray-500">{filteredTires.length} result{filteredTires.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold text-gray-900">All Inventory</h3>
-                  <span className="text-sm text-gray-500">({getFilteredTiresBySearch(tires).length})</span>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {selectedBrand ? `${selectedBrand} - Inventory` : 'All Inventory'}
+                  </h3>
+                  {selectedBrand && (
+                    <button
+                      onClick={() => setSelectedBrand(null)}
+                      className="text-xs text-gray-500 hover:text-black"
+                    >
+                      Clear filter ✕
+                    </button>
+                  )}
+                  <span className="text-sm text-gray-500">({filteredTires.length})</span>
                 </div>
                 <InventoryTable
-                  tires={getFilteredTiresBySearch(tires)}
+                  tires={filteredTires}
                   isAdmin={false}
                   onEdit={null}
                   onRefresh={fetchTires}
@@ -314,29 +350,38 @@ export default function UserDashboard() {
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   {selectedBrand && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
-                      {selectedBrand}
-                      <button onClick={() => setSelectedBrand(null)} className="text-gray-500 hover:text-gray-700">×</button>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black text-white px-3 py-1 text-xs font-medium">
+                      Filtered: {selectedBrand}
+                      <button onClick={() => setSelectedBrand(null)} className="text-white/80 hover:text-white">×</button>
                     </span>
                   )}
-                  <span className="text-sm text-gray-500">{getFilteredTiresBySearch(filtered).length} result{getFilteredTiresBySearch(filtered).length !== 1 ? 's' : ''}</span>
+                  <span className="text-sm text-gray-500">{filteredTires.length} result{filteredTires.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
 
+              {/* Brand Cards - Clickable */}
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
                 {allBrands.map((brand) => {
                   const brandTires = getTiresByBrand(brand)
-                  const filteredBrandTiresForCard = getFilteredTiresBySearch(brandTires)
+                  const filteredBrandTiresForCard = search 
+                    ? brandTires.filter(t => 
+                        t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
+                        t.description?.toLowerCase().includes(search.toLowerCase())
+                      )
+                    : brandTires
                   const totalQty = filteredBrandTiresForCard.reduce((sum, t) => sum + (t.quantity || 0), 0)
                   const isSelected = selectedBrand === brand
+                  
+                  // Hide brand card if no results match search
                   if (search && filteredBrandTiresForCard.length === 0) return null
+                  
                   return (
                     <div
                       key={brand}
-                      onClick={() => setSelectedBrand(isSelected ? null : brand)}
+                      onClick={() => handleBrandClick(brand)}
                       className={`group relative cursor-pointer rounded-md border transition-all hover:shadow-md ${
                         isSelected 
-                          ? 'border-black bg-gray-50 shadow-sm' 
+                          ? 'border-black bg-gray-50 shadow-md ring-1 ring-black' 
                           : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                     >
@@ -345,7 +390,9 @@ export default function UserDashboard() {
                       }`}></div>
                       <div className="p-4">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-gray-900">{brand}</span>
+                          <span className={`font-semibold ${isSelected ? 'text-black' : 'text-gray-900'}`}>
+                            {brand}
+                          </span>
                           {isSelected && (
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-black">
                               <path d="M20 6L9 17l-5-5"/>
@@ -369,71 +416,147 @@ export default function UserDashboard() {
                 })}
               </div>
 
-              <div className="flex flex-col space-y-6">
-                {allBrands.map((brand) => {
-                  const brandTires = getTiresByBrand(brand)
-                  const filteredBrandTires = getFilteredTiresBySearch(brandTires)
-                  if (filteredBrandTires.length === 0) return null
+              {/* Selected Brand Section - Shows all tires from selected brand */}
+              {selectedBrand ? (
+                <div className="rounded-md border border-gray-200 bg-white overflow-hidden">
+                  <div className="bg-black px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{selectedBrand}</h3>
+                        <p className="text-xs text-gray-300 mt-0.5">
+                          {filteredTires.length} item{filteredTires.length !== 1 ? 's' : ''} • 
+                          Total Quantity: {filteredTires.reduce((sum, t) => sum + (t.quantity || 0), 0)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedBrand(null)}
+                        className="text-white/80 hover:text-white text-sm flex items-center gap-1"
+                      >
+                        Clear filter ✕
+                      </button>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">ID Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white">
+                        {filteredTires.map((tire, idx) => (
+                          <tr key={tire.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{idx + 1}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 max-w-md truncate">{tire.description}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                              }`}>{tire.quantity}</span>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm">
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                              }`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${tire.quantity < 5 ? 'bg-red-500' : tire.quantity < 20 ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
+                                {tire.quantity < 5 ? 'Low Stock' : tire.quantity < 20 ? 'Medium' : 'In Stock'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                /* Show all brands with their tires when no brand is selected - WITHOUT VIEW ALL BUTTON */
+                <div className="flex flex-col space-y-6">
+                  {allBrands.map((brand) => {
+                    const brandTires = getTiresByBrand(brand)
+                    const filteredBrandTires = search 
+                      ? brandTires.filter(t => 
+                          t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
+                          t.description?.toLowerCase().includes(search.toLowerCase())
+                        )
+                      : brandTires
+                    
+                    if (filteredBrandTires.length === 0) return null
 
-                  return (
-                    <div key={brand} className="rounded-md border border-gray-200 bg-white overflow-hidden">
-                      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{brand}</h3>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {filteredBrandTires.length} item{filteredBrandTires.length !== 1 ? 's' : ''} • 
-                              Total Quantity: {filteredBrandTires.reduce((sum, t) => sum + (t.quantity || 0), 0)}
-                            </p>
-                          </div>
-                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-xs font-bold text-gray-600">{filteredBrandTires.length}</span>
+                    return (
+                      <div key={brand} className="rounded-md border border-gray-200 bg-white overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900">{brand}</h3>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {filteredBrandTires.length} item{filteredBrandTires.length !== 1 ? 's' : ''} • 
+                                Total Quantity: {filteredBrandTires.reduce((sum, t) => sum + (t.quantity || 0), 0)}
+                              </p>
+                            </div>
+                            {/* REMOVED: View all button */}
                           </div>
                         </div>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-white">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">ID Number</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Description</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 bg-white">
-                            {filteredBrandTires.map((tire, idx) => (
-                              <tr key={tire.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{idx + 1}</td>
-                                <td className="whitespace-nowrap px-4 py-2 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
-                                <td className="px-4 py-2 text-sm text-gray-700 max-w-md truncate">{tire.description}</td>
-                                <td className="whitespace-nowrap px-4 py-2 text-sm">
-                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                    tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-                                  }`}>{tire.quantity}</span>
-                                </td>
-                                <td className="whitespace-nowrap px-4 py-2 text-sm">
-                                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
-                                    tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-                                  }`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${tire.quantity < 5 ? 'bg-red-500' : tire.quantity < 20 ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
-                                    {tire.quantity < 5 ? 'Low Stock' : tire.quantity < 20 ? 'Medium' : 'In Stock'}
-                                  </span>
-                                </td>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-white">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">ID Number</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Description</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 bg-white">
+                              {filteredBrandTires.slice(0, 5).map((tire, idx) => (
+                                <tr key={tire.id} className="hover:bg-gray-50 transition-colors">
+                                  <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{idx + 1}</td>
+                                  <td className="whitespace-nowrap px-4 py-2 text-sm font-mono font-medium text-gray-900">{tire.id_number}</td>
+                                  <td className="px-4 py-2 text-sm text-gray-700 max-w-md truncate">{tire.description}</td>
+                                  <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                      tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                                    }`}>{tire.quantity}</span>
+                                  </td>
+                                  <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                      tire.quantity < 5 ? 'bg-red-100 text-red-800' : tire.quantity < 20 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                                    }`}>
+                                      <span className={`h-1.5 w-1.5 rounded-full ${tire.quantity < 5 ? 'bg-red-500' : tire.quantity < 20 ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
+                                      {tire.quantity < 5 ? 'Low Stock' : tire.quantity < 20 ? 'Medium' : 'In Stock'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {filteredBrandTires.length > 5 && (
+                            <div className="px-4 py-2 text-center border-t border-gray-100 bg-gray-50">
+                              <p className="text-xs text-gray-500">
+                                + {filteredBrandTires.length - 5} more items
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
 
+              {/* No results message */}
               {allBrands.every(brand => {
                 const brandTires = getTiresByBrand(brand)
-                const filteredBrandTires = getFilteredTiresBySearch(brandTires)
+                const filteredBrandTires = search 
+                  ? brandTires.filter(t => 
+                      t.id_number?.toLowerCase().includes(search.toLowerCase()) ||
+                      t.description?.toLowerCase().includes(search.toLowerCase())
+                    )
+                  : brandTires
                 return filteredBrandTires.length === 0
               }) && (
                 <div className="flex flex-col items-center justify-center rounded-md border border-gray-200 bg-white py-12">
@@ -461,7 +584,6 @@ export default function UserDashboard() {
   )
 }
 
-// Small logo for loading modal
 function TireLogoIconSmall() {
   return (
     <div className="h-8 w-8">

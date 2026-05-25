@@ -9,7 +9,7 @@ export default function TireForm({ editTire, onClose, onSaved }) {
     id_number: '',
     brand: 'Michelin',
     description: '',
-    quantity: '',
+    quantity: 0,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -21,7 +21,7 @@ export default function TireForm({ editTire, onClose, onSaved }) {
         id_number: editTire.id_number || '',
         brand: editTire.brand || 'Michelin',
         description: editTire.description || '',
-        quantity: editTire.quantity ?? '',
+        quantity: editTire.quantity ?? 0,
       })
     }
   }, [editTire])
@@ -52,17 +52,46 @@ export default function TireForm({ editTire, onClose, onSaved }) {
     setForm(prev => ({ ...prev, [name]: value }))
   }
 
+  // Function to increase quantity
+  function increaseQuantity() {
+    setForm(prev => ({ 
+      ...prev, 
+      quantity: (prev.quantity || 0) + 1 
+    }))
+  }
+
+  // Function to decrease quantity
+  function decreaseQuantity() {
+    setForm(prev => ({ 
+      ...prev, 
+      quantity: Math.max(0, (prev.quantity || 0) - 1)
+    }))
+  }
+
+  // Manual input for quantity
+  function handleQuantityChange(e) {
+    const value = e.target.value
+    if (value === '') {
+      setForm(prev => ({ ...prev, quantity: 0 }))
+    } else {
+      const numValue = parseInt(value, 10)
+      if (!isNaN(numValue) && numValue >= 0) {
+        setForm(prev => ({ ...prev, quantity: numValue }))
+      }
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    setCountdown(3) // 3 seconds instead of 5
+    setCountdown(3)
     setError('')
 
     const payload = {
       id_number: form.id_number.trim(),
       brand: form.brand,
       description: form.description.trim(),
-      quantity: parseInt(form.quantity, 10),
+      quantity: form.quantity,
       updated_at: new Date().toISOString(),
     }
 
@@ -178,19 +207,51 @@ export default function TireForm({ editTire, onClose, onSaved }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Quantity <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={form.quantity}
-                  onChange={handleChange}
-                  placeholder="0"
-                  min="0"
-                  required
-                  className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-                />
-                {parseInt(form.quantity) < 5 && form.quantity !== '' && (
+                <div className="flex items-center gap-2">
+                  {/* Decrease Button */}
+                  <button
+                    type="button"
+                    onClick={decreaseQuantity}
+                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-black transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                  
+                  {/* Quantity Input */}
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={form.quantity}
+                    onChange={handleQuantityChange}
+                    min="0"
+                    required
+                    className="w-24 text-center rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  
+                  {/* Increase Button */}
+                  <button
+                    type="button"
+                    onClick={increaseQuantity}
+                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-black transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Low stock warning */}
+                {form.quantity < 5 && form.quantity > 0 && (
                   <p className="mt-1 text-xs text-amber-600 flex items-center gap-1">
                     ⚠ Quantity is below 5 — will be marked as low stock
+                  </p>
+                )}
+                {form.quantity === 0 && (
+                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                    ⚠ Quantity is 0 — out of stock
                   </p>
                 )}
               </div>

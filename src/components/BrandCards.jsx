@@ -9,7 +9,10 @@ const BRAND_META = {
 }
 
 export default function BrandCards({ tires, selectedBrand, onSelectBrand }) {
-  const brands = [...new Set(tires.map(t => t.brand))].sort()
+  // Extract unique brands and sort alphabetically (case-insensitive)
+  const brands = [...new Set(tires.map(t => t.brand))]
+    .filter(Boolean) // Remove any null/undefined values
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })) // Case-insensitive alphabetical sort
 
   const getBrandData = (brand) => {
     const brandTires = tires.filter(t => t.brand === brand)

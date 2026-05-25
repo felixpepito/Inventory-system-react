@@ -34,7 +34,7 @@ export default function DashboardCards({ tires }) {
       suffix: 'below 5'
     },
     {
-      label: 'Active Brands',
+      label: 'All Brands',
       value: brands,
       icon: <BrandsIcon />,
       bgClass: 'bg-white',

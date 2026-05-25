@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 
 export default function Login() {
@@ -7,6 +7,36 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // Real-time clock update every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  // Format time (HH:MM:SS AM/PM)
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    })
+  }
+
+  // Format date (Day, Month DD, YYYY)
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -25,8 +55,8 @@ export default function Login() {
     <div className="min-h-screen flex items-stretch relative overflow-hidden">
       {/* Main container */}
       <div className="flex w-full min-h-screen">
-        {/* Left Panel - GRAY side with Branding (formerly white) */}
-        <div className="hidden lg:flex flex-1 bg-gray-100 flex-col justify-between p-12 lg:p-16 relative overflow-hidden">
+        {/* Left Panel - GRAY side with Branding */}
+        <div className="hidden lg:flex flex-1 bg-gray-100 flex-col justify-center items-center p-12 lg:p-16 relative overflow-hidden">
           {/* Decorative circles group - all moving together dynamically */}
           
           {/* Circle 1: Large pulsing circle with drifting movement */}
@@ -78,27 +108,44 @@ export default function Login() {
             }}
           />
 
-          {/* Logo Area */}
-          <div className="relative space-y-8 z-10">
-            <div className="w-24 h-24 animate-[float_4s_ease-in-out_infinite]">
-              <img 
-                src="/img/logo23.png"
-                alt="Tire Icon"
-                className="w-full h-full object-contain"
-              />
+          {/* Date and Time Display - Now at the TOP */}
+          <div className="relative z-10 w-full mb-auto">
+            <div className="backdrop-blur-sm rounded-lg p-4 ">
+              <div className="flex items-center justify-center gap-3">
+                <div className="text-gray-700">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-black font-mono">
+                    {formatTime(currentTime)}
+                  </div>
+                  <div className="text-sm text-gray-600 font-medium">
+                    {formatDate(currentTime)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Centered Content */}
+          <div className="relative text-center space-y-8 z-10 flex-1 flex flex-col justify-center">
+            <div className="flex justify-center">
             </div>
             <div className="space-y-2">
-              <span className="font-['Barlow_Condensed'] text-xs font-semibold tracking-[0.2em] text-gray-600 uppercase">
+              <span className="font-['Barlow_Condensed'] text-xs font-semibold tracking-[0.2em] text-gray-600 uppercase block">
                 TRIANGLE OUTSOURCING CORPORATION
               </span>
               <h1 className="font-['Barlow_Condensed'] text-5xl lg:text-6xl font-black leading-tight text-black uppercase">
-                TIRE INVENTORY<br />
+                TIRE INVENTORY
               </h1>
             </div>
           </div>
         </div>
 
-        {/* Right Panel - Black side with Form (same) */}
+        {/* Right Panel - Black side with Form */}
         <div className="flex-1 lg:w-[460px] lg:flex-none bg-black flex items-center justify-center p-8 lg:p-16">
           <div className="w-full max-w-md">
             {/* Header */}
@@ -107,7 +154,7 @@ export default function Login() {
                 Welcome To Tire Inventory
               </h2>
               <p className="text-gray-500 text-sm">
-                Sign in 
+                Sign in to access the system
               </p>
             </div>
 

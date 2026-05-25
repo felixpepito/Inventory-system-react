@@ -22,24 +22,18 @@ export default function AdminDashboard() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
 
-  const [recentPage, setRecentPage] = useState(1)
-  const itemsPerPage = 5
-
   const fetchTires = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('tires')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('brand', { ascending: true })
+      .order('id_number', { ascending: true })
     if (!error) setTires(data || [])
     setLoading(false)
   }, [])
 
   useEffect(() => { fetchTires() }, [fetchTires])
-
-  useEffect(() => {
-    setRecentPage(1)
-  }, [tires])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -85,19 +79,8 @@ export default function AdminDashboard() {
     }
   }
 
-  const totalRecentItems = tires.length
-  const totalRecentPages = Math.ceil(totalRecentItems / itemsPerPage)
-  const startIndex = (recentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const recentTires = tires.slice(startIndex, endIndex)
-
-  function goToNextPage() {
-    if (recentPage < totalRecentPages) setRecentPage(recentPage + 1)
-  }
-
-  function goToPrevPage() {
-    if (recentPage > 1) setRecentPage(recentPage - 1)
-  }
+  // Kuhaon lang ang tanang tires para sa recent inventory (no pagination)
+  const recentTires = tires.slice(0, 5) // First 5 tires lang
 
   const filtered = tires.filter(t => {
     const matchBrand = selectedBrand ? t.brand === selectedBrand : true
@@ -150,7 +133,8 @@ export default function AdminDashboard() {
               <p className="mt-1 text-sm text-gray-500">Triangle Outsourcing Corporation — Admin Portal</p>
             </div>
             <div className="flex items-center gap-4">
-              {(activePage === 'inventory' || activePage === 'brands') && (
+              {/* Add Tire button - ONLY visible on Inventory page, NOT on Brands */}
+              {activePage === 'inventory' && (
                 <button 
                   onClick={handleAdd}
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition-colors"
@@ -258,41 +242,6 @@ export default function AdminDashboard() {
                   onRefresh={fetchTires}
                   loading={loading}
                 />
-                
-                {totalRecentItems > itemsPerPage && (
-                  <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-md">
-                    <div className="flex flex-1 justify-between sm:hidden">
-                      <button onClick={goToPrevPage} disabled={recentPage === 1} className="...">Previous</button>
-                      <button onClick={goToNextPage} disabled={recentPage === totalRecentPages} className="...">Next</button>
-                    </div>
-                    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                      <p className="text-sm text-gray-700">
-                        Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                        <span className="font-medium">{Math.min(endIndex, totalRecentItems)}</span> of{' '}
-                        <span className="font-medium">{totalRecentItems}</span> results
-                      </p>
-                      <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
-                        <button onClick={goToPrevPage} disabled={recentPage === 1} className="...">Previous</button>
-                        {[...Array(totalRecentPages)].map((_, idx) => {
-                          const pageNum = idx + 1
-                          if (pageNum === 1 || pageNum === totalRecentPages || (pageNum >= recentPage - 1 && pageNum <= recentPage + 1)) {
-                            return (
-                              <button key={pageNum} onClick={() => setRecentPage(pageNum)} className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                                recentPage === pageNum ? 'z-10 bg-black text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
-                              }`}>
-                                {pageNum}
-                              </button>
-                            )
-                          } else if ((pageNum === recentPage - 2 && recentPage > 3) || (pageNum === recentPage + 2 && recentPage < totalRecentPages - 2)) {
-                            return <span key={pageNum} className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700">...</span>
-                          }
-                          return null
-                        })}
-                        <button onClick={goToNextPage} disabled={recentPage === totalRecentPages} className="...">Next</button>
-                      </nav>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -387,7 +336,7 @@ export default function AdminDashboard() {
         />
       )}
 
-      {/* Logout Loading Modal - kapareho ng UserDashboard */}
+      {/* Logout Loading Modal */}
       {loggingOut && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 rounded-2xl bg-gradient-to-br from-gray-900 to-black p-8 shadow-2xl border border-gray-700 min-w-[320px]">
