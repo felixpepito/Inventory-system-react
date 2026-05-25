@@ -1,9 +1,25 @@
-// UserDashboard.jsx - Fixed version
+// UserDashboard.jsx - Fixed version (no styled-jsx needed)
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import UserSidebar from '../components/UserSidebar'
 import InventoryTable from '../components/InventoryTable'
+
+function TireLogoIconSmall() {
+  return (
+    <div className="h-8 w-8">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="18" stroke="white" strokeWidth="2"/>
+        <circle cx="20" cy="20" r="12" stroke="white" strokeWidth="1.5"/>
+        <circle cx="20" cy="20" r="5" fill="white"/>
+        {[0,60,120,180,240,300].map((angle, i) => (
+          <rect key={i} x="18.5" y="2" width="3" height="6" rx="1.5" fill="white"
+            transform={`rotate(${angle} 20 20}`}/>
+        ))}
+      </svg>
+    </div>
+  )
+}
 
 export default function UserDashboard() {
   const [activePage, setActivePage] = useState('inventory')
@@ -78,10 +94,10 @@ export default function UserDashboard() {
     setLoggingOut(true)
     setDropdownOpen(false)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
       await supabase.auth.signOut()
     } catch (error) {
       console.error('Logout error:', error)
+    } finally {
       setLoggingOut(false)
     }
   }
@@ -204,7 +220,7 @@ export default function UserDashboard() {
                         <polyline points="16 17 21 12 16 7"/>
                         <line x1="21" y1="12" x2="9" y2="12"/>
                       </svg>
-                      <span>{loggingOut ? 'Signing Out...' : 'Sign Out'}</span>
+                      <span>Sign Out</span>
                     </button>
                   </div>
                 )}
@@ -474,31 +490,6 @@ export default function UserDashboard() {
           )}
         </div>
       </main>
-
-      <style jsx>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-      `}</style>
-    </div>
-  )
-}
-
-function TireLogoIconSmall() {
-  return (
-    <div className="h-8 w-8">
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="18" stroke="white" strokeWidth="2"/>
-        <circle cx="20" cy="20" r="12" stroke="white" strokeWidth="1.5"/>
-        <circle cx="20" cy="20" r="5" fill="white"/>
-        {[0,60,120,180,240,300].map((angle, i) => (
-          <rect key={i} x="18.5" y="2" width="3" height="6" rx="1.5" fill="white"
-            transform={`rotate(${angle} 20 20}`}/>
-        ))}
-      </svg>
     </div>
   )
 }
